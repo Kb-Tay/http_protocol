@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -15,27 +16,37 @@ func main() {
 	}
 
 	defer f.Close()
-
-	buf := make([]byte, BYTES_READ)
-	var offset = int64(0)
-	n, err := f.ReadAt(buf, offset);
 	
-	if n == 0 {
-		return
-	}
+	var input = strings.Builder{}
 
 	for {
-		fmt.Println("read: " + string(buf))
-		n, err = f.ReadAt(buf, offset)
+		buf := make([]byte, BYTES_READ)
+		_, err := f.Read(buf)
+		
+		check := false;
 
-		offset, _ = f.Seek(BYTES_READ, 1)
+		for i, ch := range buf {
+			if ch == '\n' {
+				curr, next := buf[:i], buf[i+1:]
+				input.Write(curr)
+				fmt.Printf("read: %s\n", input.String())
+				input.Reset()
+				input.Write(next)
+				check = true
+				break
+			}
+		}
+
+		if !check {
+			input.Write(buf)	
+		}
 
 		if err == io.EOF {
-			if n > 0 && n < BYTES_READ {
-				fmt.Println("read: " + string(buf[:n-1]))
-			}
 			break;
 		}
 	}
 
+	if input.Len() > 0 {
+		fmt.Printf("read: %s\n", input.String())
+	}
 }
