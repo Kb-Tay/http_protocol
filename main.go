@@ -22,8 +22,8 @@ func main() {
 	for {
 		buf := make([]byte, BYTES_READ)
 		_, err := f.Read(buf)
-		
-		check := false;
+	
+		var byteToWrite = buf
 
 		for i, ch := range buf {
 			if ch == '\n' {
@@ -31,22 +31,30 @@ func main() {
 				input.Write(curr)
 				fmt.Printf("read: %s\n", input.String())
 				input.Reset()
-				input.Write(next)
-				check = true
+				byteToWrite = next
 				break
 			}
 		}
 
-		if !check {
-			input.Write(buf)	
-		}
+		input.Write(byteToWrite)	
 
 		if err == io.EOF {
 			break;
 		}
 	}
 
-	if input.Len() > 0 {
+	if input.Len() > 0 && isEmptyStr(input.String()) {
 		fmt.Printf("read: %s\n", input.String())
 	}
 }
+
+func isEmptyStr(buf string) bool {
+	for _, ch := range buf {
+		if ch != '\n' {
+			return false
+		}
+	}
+
+	return true
+}
+
