@@ -4,28 +4,39 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
+	"net"
 	"strings"
 )
 
 const BYTES_READ = 8;
+const port = ":42069"
 
 func main() {
-	f, err := os.Open("messages.txt")	
+	listener, err := net.Listen("tcp", ":42069")
 	if err != nil {
-		log.Fatal("Failed to read file")	
+		log.Fatal("Failed to create listener")
 	}
 
-	ch := getLinesChannel(f)
-	
-	for  {
-		line, ok := <- ch 
+	defer listener.Close()
 
-		if !ok {
-			break;
+	for {
+		conn, err := listener.Accept()
+		
+		if err != nil {
+			break
 		}
 
-		fmt.Printf("read: %s\n", line)
+		fmt.Println("Connection Accepted")
+		ch := getLinesChannel(conn)
+		for  {
+			line, ok := <- ch 
+
+			if !ok {
+				break;
+			}
+
+			fmt.Printf("%s\n", line)
+		}
 	}
 }
 
@@ -39,43 +50,51 @@ func isEmptyStr(buf string) bool {
 	return false 
 }
 
-func getLinesChannel(f io.ReadCloser) <-chan string {
+func getLinesChannel(conn net.Conn) <-chan string {
 	ch := make(chan string)
 	go func() {
-		defer f.Close()
-		var input = strings.Builder{}
-
-		for {
-			buf := make([]byte, BYTES_READ)
-			_, err := f.Read(buf)
-
-			var byteToWrite = buf
-
-			for i, b := range buf {
-				if b == '\n' {
-					curr, next := buf[:i], buf[i+1:]
-					input.Write(curr)
-					ch <- input.String()
-					input.Reset()
-					byteToWrite = next
-					break
-				}
-			}
-
-			input.Write(byteToWrite)	
-
-			if err == io.EOF {
-				break;
-			}
-		}
-		
-		if input.Len() > 0 && !isEmptyStr(input.String()) {
-			ch <- input.String()
-		}
-
+		readFromConn(conn, ch)
 		close(ch)
+		conn.Close()
+		fmt.Println("Connection Closed")
 	}()
 
 	return ch
+}
+
+func readFromConn(conn net.Conn, ch chan string) {
+	var input = strings.Builder{}
+	
+	for {
+		buf := make([]byte, BYTES_READ)
+		_, err := conn.Read(buf)
+
+		if err != nil && err != io.EOF {
+			break
+		}
+
+		var byteToWrite = buf
+
+		for i, b := range buf {
+			if b == '\n' {
+				curr, next := buf[:i], buf[i+1:]
+				input.Write(curr)
+				ch <- input.String()
+				input.Reset()
+				byteToWrite = next
+				break
+			}
+		}
+
+		input.Write(byteToWrite)	
+
+		if err == io.EOF {
+			break;
+		}
+	}
+
+	if input.Len() > 0 && !isEmptyStr(input.String()) {
+		ch <- input.String()
+	}
 }
 
