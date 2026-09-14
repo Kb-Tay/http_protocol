@@ -28,26 +28,22 @@ func main() {
 
 		fmt.Println("Connection Accepted")
 		ch := getLinesChannel(conn)
-		for  {
-			line, ok := <- ch 
-
-			if !ok {
-				break;
-			}
-
+		for line := range ch {
 			fmt.Printf("%s\n", line)
 		}
+		conn.Close()
+		fmt.Println("Connection Closed")
 	}
 }
 
 func isEmptyStr(buf string) bool {
 	for _, ch := range buf {
 		if ch != '\n' {
-			return true 
+			return false 
 		}
 	}
 
-	return false 
+	return true 
 }
 
 func getLinesChannel(conn net.Conn) <-chan string {
@@ -55,8 +51,6 @@ func getLinesChannel(conn net.Conn) <-chan string {
 	go func() {
 		readFromConn(conn, ch)
 		close(ch)
-		conn.Close()
-		fmt.Println("Connection Closed")
 	}()
 
 	return ch
