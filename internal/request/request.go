@@ -2,7 +2,7 @@ package request
 
 import (
 	"errors"
-	"fmt"
+	"http_protocol/internal/buffer"
 	"io"
 	"log"
 	"strings"
@@ -26,7 +26,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	request := Request{} // it will initialised with default values
 	
 	// read chunks within a loop 
-	data := make([]byte, 0)
+	buf := buffer.New()
 
 	for {
 		bytes := make([]byte, 8)
@@ -35,10 +35,10 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 			// **Key part: Need to only read the amount you take in
 			// when init a slice of fixed size, the bytes slice will contain 
 			// an array of x00 bytes
-			data = append(data, bytes[:n]...) 		
+			buf.Read(bytes[:n])		
 		}
 
-		n, parseErr := request.parse(data)
+		n, parseErr := request.parse(buf.GetBuffer())
 
 		if parseErr != nil {
 			return &request, parseErr
@@ -94,10 +94,8 @@ func (r *Request) parse(data []byte) (int, error) {
 	// reads the byte until the first \r\n 
 	// discards the rest of the Request for now
 	n, err := r.parseRequestLine(data)
-	fmt.Printf("received: %v\n", n)
 
 	if n > 0 {
-		fmt.Printf("Hit: %v", r)
 		r.State = 1
 		return n, nil
 	}
@@ -128,7 +126,6 @@ func parseHttpVersion(protocol string) (string, error) {
 	}
 
 	header, version := parts[0], parts[1]
-	fmt.Printf("header: %s %s", header, version)
 	
 	if header != "HTTP" {
 		return "", errors.New("Invalid protocol")
