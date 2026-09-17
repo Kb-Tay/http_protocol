@@ -1,7 +1,5 @@
 package buffer
 
-import "fmt"
-
 const INIT_SIZE = 8
 
 type Buffer struct {
@@ -32,7 +30,6 @@ func (b *Buffer) Read(bytes []byte) {
 		newBuf := make([]byte, 0, b.size * 2)
 		newBuf = append(newBuf, b.buf[:b.nextInd]...)
 
-		fmt.Printf("%q", newBuf)
 		b.buf = newBuf
 		b.size = b.size * 2
 	}

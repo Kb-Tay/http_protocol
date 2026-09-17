@@ -2,10 +2,9 @@ package main
 
 import (
 	"fmt"
-	"io"
+	"http_protocol/internal/request"
 	"log"
 	"net"
-	"strings"
 )
 
 const BYTES_READ = 8;
@@ -27,68 +26,10 @@ func main() {
 		}
 
 		fmt.Println("Connection Accepted")
-		ch := getLinesChannel(conn)
-		for line := range ch {
-			fmt.Printf("%s\n", line)
-		}
+		request, err := request.RequestFromReader(conn)
+		fmt.Printf("Request line:\n- Method: %s\n- Target: %s\n- Version: %s", request.RequestLine.Method, request.RequestLine.RequestTarget, request.RequestLine.HttpVersion)
+
 		conn.Close()
-		fmt.Println("Connection Closed")
-	}
-}
-
-func isEmptyStr(buf string) bool {
-	for _, ch := range buf {
-		if ch != '\n' {
-			return false 
-		}
-	}
-
-	return true 
-}
-
-func getLinesChannel(conn net.Conn) <-chan string {
-	ch := make(chan string)
-	go func() {
-		readFromConn(conn, ch)
-		close(ch)
-	}()
-
-	return ch
-}
-
-func readFromConn(conn net.Conn, ch chan string) {
-	var input = strings.Builder{}
-	
-	for {
-		buf := make([]byte, BYTES_READ)
-		_, err := conn.Read(buf)
-
-		if err != nil && err != io.EOF {
-			break
-		}
-
-		var byteToWrite = buf
-
-		for i, b := range buf {
-			if b == '\n' {
-				curr, next := buf[:i], buf[i+1:]
-				input.Write(curr)
-				ch <- input.String()
-				input.Reset()
-				byteToWrite = next
-				break
-			}
-		}
-
-		input.Write(byteToWrite)	
-
-		if err == io.EOF {
-			break;
-		}
-	}
-
-	if input.Len() > 0 && !isEmptyStr(input.String()) {
-		ch <- input.String()
 	}
 }
 

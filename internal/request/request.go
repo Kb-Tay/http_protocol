@@ -52,6 +52,10 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		buf.Read(bytes[:n])		
 
 		n, err = request.parse(buf.GetBuffer())
+		if n > 0 {
+			request.State = Completed
+			continue
+		}
 
 		if err != nil {
 			return &request, err 
