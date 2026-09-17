@@ -11,9 +11,16 @@ import (
 
 const HTTP_VERSION = "1.1"
 
+type State int 
+
+const (
+	Initialised State = iota
+	Completed
+)
+
 type Request struct {
 	RequestLine RequestLine
-	State int // 0 init, 1 done
+	State State // 0 init, 1 done
 }
 
 type RequestLine struct {
@@ -23,33 +30,31 @@ type RequestLine struct {
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
-	request := Request{} // it will initialised with default values
+	request := Request{
+		State: Initialised,	
+	} // it will initialised with default values
 	
 	// read chunks within a loop 
 	buf := buffer.New()
 
-	for {
+	for request.State != Completed {
 		bytes := make([]byte, 8)
 		n, err := reader.Read(bytes)
-		if n > 0 {
-			// **Key part: Need to only read the amount you take in
-			// when init a slice of fixed size, the bytes slice will contain 
-			// an array of x00 bytes
-			buf.Read(bytes[:n])		
+		if err != nil {
+			if err == io.EOF {
+				request.State = Completed
+				continue;
+			}
 		}
+		// **Key part: Need to only read the amount you take in
+		// when init a slice of fixed size, the bytes slice will contain 
+		// an array of x00 bytes
+		buf.Read(bytes[:n])		
 
-		n, parseErr := request.parse(buf.GetBuffer())
+		n, err = request.parse(buf.GetBuffer())
 
-		if parseErr != nil {
-			return &request, parseErr
-		}
-
-		if request.State == 1 {
-			return &request, nil
-		}
-
-		if err == io.EOF {
-			break
+		if err != nil {
+			return &request, err 
 		}
 	}
 
@@ -96,7 +101,7 @@ func (r *Request) parse(data []byte) (int, error) {
 	n, err := r.parseRequestLine(data)
 
 	if n > 0 {
-		r.State = 1
+		r.State = Completed
 		return n, nil
 	}
 
