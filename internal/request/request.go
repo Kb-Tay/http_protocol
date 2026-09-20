@@ -3,10 +3,10 @@ package request
 import (
 	"errors"
 	"http_protocol/internal/buffer"
+	"http_protocol/internal/utils"
 	"io"
 	"log"
 	"strings"
-	"unicode"
 )
 
 const HTTP_VERSION = "1.1"
@@ -20,6 +20,7 @@ const (
 
 type Request struct {
 	RequestLine RequestLine
+	// headers field
 	State State // 0 init, 1 done
 }
 
@@ -52,6 +53,8 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		buf.Read(bytes[:n])		
 
 		n, err = request.parse(buf.GetBuffer())
+
+		// update the number of bytes the parser parsed
 		if n > 0 {
 			request.State = Completed
 			continue
@@ -100,6 +103,9 @@ func (r *Request) parseRequestLine(data []byte) (int, error) {
 }
 
 func (r *Request) parse(data []byte) (int, error) {
+	// split by \r\n here then loop each section
+			
+
 	// reads the byte until the first \r\n 
 	// discards the rest of the Request for now
 	n, err := r.parseRequestLine(data)
@@ -117,13 +123,7 @@ func (r *Request) parse(data []byte) (int, error) {
 }
 
 func isValidMethod(method string) bool {
-	for _, c := range method {
-		if !unicode.IsLetter(c) {
-			return false
-		}
-	}
-
-	return true
+	return utils.IsAlphabetic(method)
 }
 
 
