@@ -11,7 +11,7 @@ import (
 
 const HTTP_VERSION = "1.1"
 
-type State int 
+type State int
 
 const (
 	Initialised State = iota
@@ -25,17 +25,17 @@ type Request struct {
 }
 
 type RequestLine struct {
-    HttpVersion   string
-    RequestTarget string
-    Method        string
+	HttpVersion   string
+	RequestTarget string
+	Method        string
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
 	request := Request{
-		State: Initialised,	
+		State: Initialised,
 	} // it will initialised with default values
-	
-	// read chunks within a loop 
+
+	// read chunks within a loop
 	buf := buffer.New()
 
 	for request.State != Completed {
@@ -44,13 +44,13 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		if err != nil {
 			if err == io.EOF {
 				request.State = Completed
-				continue;
+				continue
 			}
 		}
 		// **Key part: Need to only read the amount you take in
-		// when init a slice of fixed size, the bytes slice will contain 
+		// when init a slice of fixed size, the bytes slice will contain
 		// an array of x00 bytes
-		buf.Read(bytes[:n])		
+		buf.Read(bytes[:n])
 
 		n, err = request.parse(buf.GetBuffer())
 
@@ -61,7 +61,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		}
 
 		if err != nil {
-			return &request, err 
+			return &request, err
 		}
 	}
 
@@ -70,8 +70,8 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 
 func (r *Request) parseRequestLine(data []byte) (int, error) {
 	// still need ot split because we might receive more data than just the headers
-	parts	:= strings.SplitN(string(data), "\r\n", 2)
-	
+	parts := strings.SplitN(string(data), "\r\n", 2)
+
 	if len(parts) < 2 {
 		return 0, nil
 	}
@@ -80,12 +80,12 @@ func (r *Request) parseRequestLine(data []byte) (int, error) {
 	parts = strings.Split(requestLine, " ")
 
 	if len(parts) < 3 {
-		return 0, errors.New("Invalid request format") 
+		return 0, errors.New("Invalid request format")
 	}
 
 	method, target, protocol := parts[0], parts[1], parts[2]
 
-  if !isValidMethod(method) {
+	if !isValidMethod(method) {
 		return 0, errors.New("Invalid method")
 	}
 
@@ -94,7 +94,7 @@ func (r *Request) parseRequestLine(data []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	
+
 	r.RequestLine.RequestTarget = target
 	r.RequestLine.Method = method
 	r.RequestLine.HttpVersion = version
@@ -104,9 +104,8 @@ func (r *Request) parseRequestLine(data []byte) (int, error) {
 
 func (r *Request) parse(data []byte) (int, error) {
 	// split by \r\n here then loop each section
-			
 
-	// reads the byte until the first \r\n 
+	// reads the byte until the first \r\n
 	// discards the rest of the Request for now
 	n, err := r.parseRequestLine(data)
 
@@ -116,16 +115,15 @@ func (r *Request) parse(data []byte) (int, error) {
 	}
 
 	if err != nil {
-		return 0, err 
+		return 0, err
 	}
 
-	return 0, nil 
+	return 0, nil
 }
 
 func isValidMethod(method string) bool {
 	return utils.IsAlphabetic(method)
 }
-
 
 func parseHttpVersion(protocol string) (string, error) {
 	parts := strings.Split(protocol, "/")
@@ -135,7 +133,7 @@ func parseHttpVersion(protocol string) (string, error) {
 	}
 
 	header, version := parts[0], parts[1]
-	
+
 	if header != "HTTP" {
 		return "", errors.New("Invalid protocol")
 	}
@@ -146,4 +144,3 @@ func parseHttpVersion(protocol string) (string, error) {
 
 	return version, nil
 }
-

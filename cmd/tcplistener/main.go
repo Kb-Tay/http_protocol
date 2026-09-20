@@ -7,7 +7,7 @@ import (
 	"net"
 )
 
-const BYTES_READ = 8;
+const BYTES_READ = 8
 const port = ":42069"
 
 func main() {
@@ -20,7 +20,7 @@ func main() {
 
 	for {
 		conn, err := listener.Accept()
-		
+
 		if err != nil {
 			break
 		}
@@ -32,4 +32,3 @@ func main() {
 		conn.Close()
 	}
 }
-

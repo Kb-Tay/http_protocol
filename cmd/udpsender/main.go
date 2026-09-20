@@ -14,7 +14,7 @@ func main() {
 	udpAddr, err := net.ResolveUDPAddr("udp", PORT)
 
 	if err != nil {
-		log.Fatal("Failed to get UDP Addr")	
+		log.Fatal("Failed to get UDP Addr")
 	}
 
 	udpConn, err := net.DialUDP("udp", nil, udpAddr)
@@ -33,7 +33,7 @@ func main() {
 		if err != nil {
 			fmt.Println("Failed to read line")
 		}
-		
+
 		_, err = udpConn.Write([]byte(line))
 
 		if err != nil {
