@@ -2,7 +2,6 @@ package headers
 
 import (
 	"errors"
-	"fmt"
 	"http_protocol/internal/utils"
 	"strings"
 )
@@ -16,35 +15,30 @@ func NewHeaders() Headers {
 
 // parser should only check states and decide where to redirect data to
 func (h Headers) Parse(data []byte) (n int, done bool, err error) {
-	parts := strings.Split(string(data), "\r\n")
-	l := len(parts)
+	s := string(data)
+	
+	if s == "\r\n" {
+		done = true
+		return
+	}
+	
+	parts := strings.SplitN(s, "\r\n", 2)
 
-	fmt.Printf("parts: %v", parts)
+	if len(parts) < 2 {
+		return	
+	}
 
-	if l == 0 {
+	fieldLine := parts[0]
+	fieldName, fieldValue, parseErr := parseFieldLine(fieldLine)
+
+	if parseErr != nil {
+		err = parseErr
 		return
 	}
 
-	for _, part := range parts[:l] {
-		fieldName, fieldValue, parseErr := parseFieldLine(part)
-
-		if parseErr != nil {
-			err = parseErr
-			return
-		}
-
-		if fieldName != "" && fieldValue != "" {
-			h[fieldName] = fieldValue 
-		}
-	}
-
-	// keep track of number of bytes parsed
-	if len(parts) >= 2 {
-		done = parts[l-1] == "" && parts[l-2] == "" // means line ended with \r\n\r\n
-	}
-	
-	if !done && len(parts[l-1]) > 0{
-		n = l - len(parts[l-1])
+	if fieldName != "" && fieldValue != "" {
+		h[fieldName] = fieldValue
+		n += len(fieldLine) + 2 // account for \r\n
 	}
 
 	return
