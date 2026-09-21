@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"http_protocol/internal/headers"
 	"http_protocol/internal/request"
 	"log"
 	"net"
@@ -27,8 +28,19 @@ func main() {
 
 		fmt.Println("Connection Accepted")
 		request, err := request.RequestFromReader(conn)
-		fmt.Printf("Request line:\n- Method: %s\n- Target: %s\n- Version: %s", request.RequestLine.Method, request.RequestLine.RequestTarget, request.RequestLine.HttpVersion)
+		fmt.Printf("Request line:\n- Method: %s\n- Target: %s\n- Version: %s\n%s", request.RequestLine.Method, 
+			request.RequestLine.RequestTarget, request.RequestLine.HttpVersion, headerToString(request.Headers))
 
 		conn.Close()
 	}
+}
+
+func headerToString(headers headers.Headers) string {
+	s := "Headers:\n"
+
+	for k, v := range(headers) {
+		s += fmt.Sprintf("- %s: %s\n", k, v)
+	}
+	
+	return s
 }

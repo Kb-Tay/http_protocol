@@ -3,6 +3,7 @@ package request
 import (
 	"errors"
 	"http_protocol/internal/buffer"
+	"http_protocol/internal/headers"
 	"http_protocol/internal/utils"
 	"io"
 	"log"
@@ -15,11 +16,13 @@ type State int
 
 const (
 	Initialised State = iota
+	RequestStateParsingHeaders
 	Completed
 )
 
 type Request struct {
 	RequestLine RequestLine
+	Headers headers.Headers 
 	// headers field
 	State State // 0 init, 1 done
 }
@@ -33,6 +36,7 @@ type RequestLine struct {
 func RequestFromReader(reader io.Reader) (*Request, error) {
 	request := Request{
 		State: Initialised,
+		Headers: headers.NewHeaders(),
 	} // it will initialised with default values
 
 	// read chunks within a loop
@@ -52,16 +56,35 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		// an array of x00 bytes
 		buf.Read(bytes[:n])
 
-		n, err = request.parse(buf.GetBuffer())
+		switch (request.State) {
+		case Initialised:
+			n, err := request.parse(buf.GetBuffer())
+			if n > 0 {
+				request.State = RequestStateParsingHeaders
+				buf.Parsed(n)	
+				break	
+			}
 
-		// update the number of bytes the parser parsed
-		if n > 0 {
-			request.State = Completed
-			continue
-		}
+			if err != nil {
+				return &request, err
+			}
 
-		if err != nil {
-			return &request, err
+		case RequestStateParsingHeaders:
+			for request.State != Completed {
+				n, err := request.parseSingle(buf.GetBuffer())
+			
+				if err != nil {
+					return &request, err
+				}
+
+				if n == 0 {
+					break
+				}
+
+				buf.Parsed(n)
+			}
+
+		case Completed:
 		}
 	}
 
@@ -99,7 +122,17 @@ func (r *Request) parseRequestLine(data []byte) (int, error) {
 	r.RequestLine.Method = method
 	r.RequestLine.HttpVersion = version
 
-	return len(requestLine), nil
+	return len(requestLine) + 2, nil
+}
+
+func (r *Request) parseSingle(data []byte) (int, error) {
+	n, done, err := r.Headers.Parse(data)
+
+	if done {
+		r.State = Completed	
+	}
+
+	return n, err
 }
 
 func (r *Request) parse(data []byte) (int, error) {
@@ -109,16 +142,7 @@ func (r *Request) parse(data []byte) (int, error) {
 	// discards the rest of the Request for now
 	n, err := r.parseRequestLine(data)
 
-	if n > 0 {
-		r.State = Completed
-		return n, nil
-	}
-
-	if err != nil {
-		return 0, err
-	}
-
-	return 0, nil
+	return n, err 
 }
 
 func isValidMethod(method string) bool {

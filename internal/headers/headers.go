@@ -35,6 +35,7 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	s := string(data)
 
 	if s == "\r\n" {
+		n = 2
 		done = true
 		return
 	}
@@ -54,6 +55,12 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	}
 
 	if fieldName != "" && fieldValue != "" {
+		v, ok := h[fieldName]
+
+		if ok {
+			fieldValue = v + ", " + fieldValue			
+		}
+
 		h[fieldName] = fieldValue
 		n += len(fieldLine) + 2 // account for \r\n
 	}
@@ -77,7 +84,7 @@ func parseFieldLine(data string) (string, string, error) {
 
 	fieldValue = strings.TrimSpace(fieldValue)
 
-	return fieldName, fieldValue, nil
+	return strings.ToLower(fieldName), fieldValue, nil
 }
 
 func isValidFieldName(fieldName string) bool {

@@ -13,7 +13,7 @@ func TestHeadersParse(t *testing.T) {
 	n, done, err := headers.Parse(data)
 	require.NoError(t, err)
 	require.NotNil(t, headers)
-	assert.Equal(t, "localhost:42069", headers["Host"])
+	assert.Equal(t, "localhost:42069", headers["host"])
 	assert.Equal(t, 23, n)
 	assert.False(t, done)
 
@@ -39,7 +39,7 @@ func TestHeadersParse(t *testing.T) {
 	n, done, err = headers.Parse(data)
 	require.NoError(t, err)
 	require.NotNil(t, headers)
-	assert.Equal(t, "localhost:42069", headers["Host"])
+	assert.Equal(t, "localhost:42069", headers["host"])
 	assert.Equal(t, 30, n)
 	assert.False(t, done)
 
@@ -49,15 +49,28 @@ func TestHeadersParse(t *testing.T) {
 	n, done, err = headers.Parse(data)
 	require.NoError(t, err)
 	require.NotNil(t, headers)
-	assert.Equal(t, "localhost:42069", headers["Host"])
+	assert.Equal(t, "localhost:42069", headers["host"])
 	assert.Equal(t, 23, n)
 	assert.False(t, done)
 
 	n, done, err = headers.Parse(data[n:])
 	require.NoError(t, err)
 	require.NotNil(t, headers)
-	assert.Equal(t, "8000", headers["Port"])
+	assert.Equal(t, "8000", headers["port"])
 	assert.Equal(t, 12, n)
 	assert.False(t, done)
 
+	// Test:
+	headers = NewHeaders()
+	data = []byte("Set-Person: lane-loves-go\r\nSet-Person: prime-loves-zig\r\nSet-Person: tj-loves-ocaml\r\n\r\n")
+	n, done, err = headers.Parse(data)
+	data = data[n:]
+	n, done, err = headers.Parse(data)
+	data = data[n:]
+	n, done, err = headers.Parse(data)
+	data = data[n:]
+
+	require.NoError(t, err)
+	require.NotNil(t, headers)
+	assert.Equal(t, "lane-loves-go, prime-loves-zig, tj-loves-ocaml", headers["set-person"])
 }
