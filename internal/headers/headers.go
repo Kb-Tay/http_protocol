@@ -30,19 +30,30 @@ func NewHeaders() Headers {
 	return make(Headers)
 }
 
+func (h Headers) Get(key string) string {
+	v, ok := h[strings.ToLower(key)]
+
+	if !ok {
+		return ""
+	}
+
+	return v
+}
+
 // parser should only check states and decide where to redirect data to
 func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	s := string(data)
 
-	if s == "\r\n" {
-		n = 2
-		done = true
-		return
-	}
-
 	parts := strings.SplitN(s, "\r\n", 2)
 
 	if len(parts) < 2 {
+		return
+	}
+
+	// this is the issue, cannot do a direct string check when there is a body after
+	if parts[0] == "" {
+		n = 2
+		done = true
 		return
 	}
 

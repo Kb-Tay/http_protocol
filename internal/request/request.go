@@ -2,11 +2,13 @@ package request
 
 import (
 	"errors"
+	"fmt"
 	"http_protocol/internal/buffer"
 	"http_protocol/internal/headers"
 	"http_protocol/internal/utils"
 	"io"
 	"log"
+	"strconv"
 	"strings"
 )
 
@@ -17,12 +19,14 @@ type State int
 const (
 	Initialised State = iota
 	RequestStateParsingHeaders
+	RequestStateParsingBody
 	Completed
 )
 
 type Request struct {
 	RequestLine RequestLine
 	Headers headers.Headers 
+	Body []byte
 	// headers field
 	State State // 0 init, 1 done
 }
@@ -44,25 +48,23 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 
 	for request.State != Completed {
 		bytes := make([]byte, 8)
-		n, err := reader.Read(bytes)
-		if err != nil {
-			if err == io.EOF {
-				request.State = Completed
-				continue
-			}
-		}
+		n, _ := reader.Read(bytes)
+		//if err != nil {
+		//	if err == io.EOF {
+		//		request.State = Completed
+		//		continue
+		//	}
+		//}
 		// **Key part: Need to only read the amount you take in
 		// when init a slice of fixed size, the bytes slice will contain
 		// an array of x00 bytes
 		buf.Read(bytes[:n])
 
 		switch (request.State) {
-		case Initialised:
+		case Initialised, RequestStateParsingBody:
 			n, err := request.parse(buf.GetBuffer())
 			if n > 0 {
-				request.State = RequestStateParsingHeaders
 				buf.Parsed(n)	
-				break	
 			}
 
 			if err != nil {
@@ -70,7 +72,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 			}
 
 		case RequestStateParsingHeaders:
-			for request.State != Completed {
+			for request.State != RequestStateParsingBody {
 				n, err := request.parseSingle(buf.GetBuffer())
 			
 				if err != nil {
@@ -83,7 +85,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 
 				buf.Parsed(n)
 			}
-
+		
 		case Completed:
 		}
 	}
@@ -122,14 +124,51 @@ func (r *Request) parseRequestLine(data []byte) (int, error) {
 	r.RequestLine.Method = method
 	r.RequestLine.HttpVersion = version
 
+	r.State = RequestStateParsingHeaders
+
 	return len(requestLine) + 2, nil
+}
+
+func (r *Request) parseRequestBody(data[] byte) (int, error) {
+	v := r.Headers.Get("content-length")
+
+	if v == "" {
+		r.State = Completed
+		return 0, nil
+	}
+
+	contentLength, err := strconv.Atoi(v)
+	fmt.Printf("Content-Length: %d, Body: %s\n", contentLength, data)
+
+	if err != nil {
+		return 0, errors.New("Invalid Content-Length")
+	}
+
+	if contentLength == 0 {
+		r.State = Completed
+		return 0, nil
+	}
+
+	// is there a case where bytes length == 0 but then its due to the buffer not reading yet
+	if contentLength > 0 && len(data) == 0 {
+		return 0, errors.New("Length of Body smaller than Content-Length")
+	}
+
+	bytesToParse := min(len(data), contentLength - len(r.Body))
+	r.Body = append(r.Body, data[:bytesToParse]...)
+
+	if len(r.Body) == contentLength {
+		r.State = Completed
+	}
+
+	return bytesToParse, nil
 }
 
 func (r *Request) parseSingle(data []byte) (int, error) {
 	n, done, err := r.Headers.Parse(data)
 
 	if done {
-		r.State = Completed	
+		r.State = RequestStateParsingBody 
 	}
 
 	return n, err
@@ -140,7 +179,15 @@ func (r *Request) parse(data []byte) (int, error) {
 
 	// reads the byte until the first \r\n
 	// discards the rest of the Request for now
-	n, err := r.parseRequestLine(data)
+	var n int
+  var err error
+
+	switch r.State {
+		case Initialised:
+		n, err = r.parseRequestLine(data)
+	case RequestStateParsingBody:
+		n, err = r.parseRequestBody(data)
+	}
 
 	return n, err 
 }
